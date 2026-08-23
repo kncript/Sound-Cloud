@@ -1,7 +1,21 @@
 const { Client, GatewayIntentBits } = require('discord.js');
-const { joinVoiceChannel, createAudioPlayer, createAudioResource, StreamType } = require('@discordjs/voice');
+const { joinVoiceChannel, createAudioPlayer, createAudioResource } = require('@discordjs/voice');
 const play = require('play-dl');
+const express = require('express');
 
+// Tạo một web server nhỏ để Render nhận diện có mở Port và không bị tắt
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.get('/', (req, res) => {
+    res.send('SoundCloud Bot is running 24/7!');
+});
+
+app.listen(PORT, () => {
+    console.log(`Web server is listening on port ${PORT}`);
+});
+
+// Khởi tạo Discord Bot
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -18,7 +32,6 @@ client.once('ready', () => {
 client.on('messageCreate', async message => {
     if (!message.guild) return;
 
-    // Ví dụ lệnh phát nhạc: !play <link_soundcloud_hoặc_youtube>
     if (message.content.startsWith('!play')) {
         const args = message.content.split(' ');
         const query = args[1];
@@ -39,7 +52,6 @@ client.on('messageCreate', async message => {
                 adapterCreator: message.guild.voiceAdapterCreator,
             });
 
-            // Sử dụng play-dl để stream nhạc
             const stream = await play.stream(query);
             const resource = createAudioResource(stream.stream, {
                 inputType: stream.type
@@ -57,5 +69,4 @@ client.on('messageCreate', async message => {
     }
 });
 
-// Đăng nhập bot sử dụng biến môi trường DISCORD_TOKEN trên Render
 client.login(process.env.DISCORD_TOKEN);
