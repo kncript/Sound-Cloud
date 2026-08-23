@@ -2,6 +2,7 @@ require('dotenv').config();
 const { Client, GatewayIntentBits } = require('discord.js');
 const { Player } = require('discord-player');
 const { SoundCloudExtractor } = require('@discord-player/extractor');
+const playdl = require('play-dl');
 const express = require('express');
 
 // Web server giữ bot sống 24/7 trên Render
@@ -25,26 +26,19 @@ const client = new Client({
     ]
 });
 
-// Khởi tạo Player với cấu hình bộ đệm tối ưu tránh abort kết nối
-const player = new Player(client, {
-    skipFFmpeg: false
-});
+const player = new Player(client);
 
 client.once('ready', async () => {
     await player.extractors.register(SoundCloudExtractor, {});
-    console.log(`Logged in as ${client.user.tag}! (SoundCloud Only)`);
+    console.log(`Logged in as ${client.user.tag}! (SoundCloud with play-dl)`);
 });
 
-// Bắt sự kiện lỗi chi tiết để tránh crash bot
 player.events.on('error', (queue, error) => {
     console.error(`[Player Error] ${error.message}`);
 });
 
 player.events.on('playerError', (queue, error) => {
     console.error(`[Queue Error] ${error.message}`);
-    if (queue && queue.metadata && queue.metadata.channel) {
-        queue.metadata.channel.send(`⚠️ Gặp lỗi đường truyền khi phát bài hát này, đang tự động chuyển...`);
-    }
 });
 
 player.events.on('audioTrackAdd', (queue, track) => {
@@ -63,28 +57,37 @@ client.on('messageCreate', async message => {
 
     if (command === '!play') {
         const query = args.join(' ');
-        if (!query) return message.reply('❌ Vui lòng nhập tên bài hát hoặc từ khóa trên SoundCloud!');
+        if (!query) return message.reply('❌ Vui lòng nhập tên bài hát hoặc link SoundCloud!');
 
         const voiceChannel = message.member.voice.channel;
         if (!voiceChannel) return message.reply('❌ Bạn cần vào một phòng Voice Channel trước!');
 
         try {
-            // Tìm kiếm trực tiếp tối ưu hóa cho SoundCloud
-            const searchResult = await player.search(query, {
-                requestedBy: message.author,
-                searchEngine: 'soundcloud' // Ép công cụ tìm kiếm chuẩn SoundCloud
-            });
-
-            if (!searchResult || !searchResult.hasTracks()) {
-                return message.reply('❌ Không tìm thấy bài hát nào trên SoundCloud!');
+            // Sử dụng play-dl để tìm kiếm trực tiếp trên SoundCloud tránh bị abort trên Render
+            let trackInfo = null;
+            if (query.startsWith('http')) {
+                const searchData = await playdl.soundcloud(query);
+                trackInfo = searchData;
+            } else {
+                const searchResults = await playdl.search(query, {
+                    limit: 1,
+                    source: { soundcloud: 'tracks' }
+                });
+                if (searchResults.length > 0) {
+                    trackInfo = searchResults[0];
+                }
             }
 
-            await player.play(voiceChannel, searchResult, {
+            if (!trackInfo) {
+                return message.reply('❌ Không tìm thấy bài hát trên SoundCloud!');
+            }
+
+            await player.play(voiceChannel, trackInfo.url, {
                 nodeOptions: {
                     metadata: message,
                     selfDeaf: false,
                     volume: 100,
-                    connectionTimeout: 45000, // Tăng thời gian chờ lên 45 giây để chống timeout trên Render
+                    connectionTimeout: 60000,
                     leaveOnEmpty: true,
                     leaveOnEmptyCooldown: 300000,
                     leaveOnEnd: true,
@@ -93,7 +96,7 @@ client.on('messageCreate', async message => {
             });
         } catch (e) {
             console.error(e);
-            return message.reply('❌ Đã xảy ra lỗi kết nối mạng tới SoundCloud.');
+            return message.reply('❌ Lỗi kết nối luồng âm thanh SoundCloud.');
         }
     }
 
