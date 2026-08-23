@@ -1,4 +1,11 @@
 {
+  "name": "soundcloud",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
   "dependencies": {
     "@discord-player/extractor": "^4.5.1",
     "@discordjs/voice": "^0.16.1",
