@@ -2,7 +2,6 @@ require('dotenv').config();
 const { Client, GatewayIntentBits } = require('discord.js');
 const { Player } = require('discord-player');
 const { SoundCloudExtractor } = require('@discord-player/extractor');
-const playdl = require('play-dl');
 const express = require('express');
 
 // Web server giữ bot sống 24/7 trên Render
@@ -29,8 +28,9 @@ const client = new Client({
 const player = new Player(client);
 
 client.once('ready', async () => {
+    // Đăng ký extractor SoundCloud chính thống
     await player.extractors.register(SoundCloudExtractor, {});
-    console.log(`Logged in as ${client.user.tag}! (SoundCloud with play-dl)`);
+    console.log(`Logged in as ${client.user.tag}! (SoundCloud Native)`);
 });
 
 player.events.on('error', (queue, error) => {
@@ -63,26 +63,8 @@ client.on('messageCreate', async message => {
         if (!voiceChannel) return message.reply('❌ Bạn cần vào một phòng Voice Channel trước!');
 
         try {
-            // Sử dụng play-dl để tìm kiếm trực tiếp trên SoundCloud tránh bị abort trên Render
-            let trackInfo = null;
-            if (query.startsWith('http')) {
-                const searchData = await playdl.soundcloud(query);
-                trackInfo = searchData;
-            } else {
-                const searchResults = await playdl.search(query, {
-                    limit: 1,
-                    source: { soundcloud: 'tracks' }
-                });
-                if (searchResults.length > 0) {
-                    trackInfo = searchResults[0];
-                }
-            }
-
-            if (!trackInfo) {
-                return message.reply('❌ Không tìm thấy bài hát trên SoundCloud!');
-            }
-
-            await player.play(voiceChannel, trackInfo.url, {
+            // Để player tự động xử lý và trích xuất qua extractor mà không qua trung gian lỗi thời
+            await player.play(voiceChannel, query, {
                 nodeOptions: {
                     metadata: message,
                     selfDeaf: false,
@@ -96,7 +78,7 @@ client.on('messageCreate', async message => {
             });
         } catch (e) {
             console.error(e);
-            return message.reply('❌ Lỗi kết nối luồng âm thanh SoundCloud.');
+            return message.reply('❌ Không thể phát bài hát này từ SoundCloud.');
         }
     }
 
