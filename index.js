@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits } = require('discord.js');
 const { Player } = require('discord-player');
-const { YouTubeExtractor, SoundCloudExtractor } = require('@discord-player/extractor');
+const { SoundCloudExtractor, YouTubeExtractor } = require('@discord-player/extractor');
 const express = require('express');
 
 // Tạo web server nhỏ để mở port giúp Render duy trì 24/7
@@ -28,9 +28,10 @@ const client = new Client({
 const player = new Player(client);
 
 client.once('ready', async () => {
-    await player.extractors.register(YouTubeExtractor, {});
+    // Đăng ký SoundCloudExtractor trước để ưu tiên lấy nhạc từ SoundCloud
     await player.extractors.register(SoundCloudExtractor, {});
-    console.log(`Logged in as ${client.user.tag}!`);
+    await player.extractors.register(YouTubeExtractor, {});
+    console.log(`Logged in as ${client.user.tag}! (SoundCloud prioritized)`);
 });
 
 // Bắt sự kiện lỗi của player để tránh bot bị crash ngầm
@@ -57,14 +58,19 @@ client.on('messageCreate', async message => {
     const command = args.shift().toLowerCase();
 
     if (command === '!play') {
-        const query = args.join(' ');
-        if (!query) return message.reply('❌ Vui lòng nhập tên bài hát hoặc đường dẫn!');
+        let query = args.join(' ');
+        if (!query) return message.reply('❌ Vui lòng nhập tên bài hát hoặc đường dẫn SoundCloud!');
+
+        // Nếu người dùng không dán link, tự động thêm từ khóa soundcloud để ép bot tìm trên SoundCloud
+        if (!query.startsWith('http')) {
+            query = `${query} soundcloud`;
+        }
 
         const voiceChannel = message.member.voice.channel;
         if (!voiceChannel) return message.reply('❌ Bạn cần vào một phòng Voice Channel trước!');
 
         try {
-            const { track } = await player.play(voiceChannel, query, {
+            await player.play(voiceChannel, query, {
                 nodeOptions: {
                     metadata: message,
                     selfDeaf: true,
@@ -77,7 +83,7 @@ client.on('messageCreate', async message => {
             });
         } catch (e) {
             console.error(e);
-            return message.reply('❌ Không thể phát bài hát này (IP của Render có thể bị YouTube giới hạn, hãy thử tìm bằng tên bài hát thay vì link trực tiếp)!');
+            return message.reply('❌ Không thể phát bài hát này từ SoundCloud. Hãy thử copy trực tiếp link bài hát trên SoundCloud dán vào xem sao!');
         }
     }
 
