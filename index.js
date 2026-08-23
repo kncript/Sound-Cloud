@@ -52,13 +52,7 @@ client.on('messageCreate', async message => {
                 adapterCreator: message.guild.voiceAdapterCreator,
             });
 
-            // Kiểm tra link SoundCloud hợp lệ
-            if (!play.soundCloud.so(query)) {
-                return message.reply('❌ Link bạn vừa nhập không phải là link SoundCloud hợp lệ!');
-            }
-
-            // Lấy thông tin bài hát và tạo stream
-            const songInfo = await play.soundcloud(query);
+            // Lấy stream trực tiếp từ play-dl
             const stream = await play.stream(query);
 
             const resource = createAudioResource(stream.stream, {
@@ -69,7 +63,7 @@ client.on('messageCreate', async message => {
             connection.subscribe(player);
             player.play(resource);
 
-            message.reply(`🎵 Đang phát: **${songInfo.name || query}**`);
+            message.reply(`🎵 Đang phát nhạc theo yêu cầu!`);
         } catch (error) {
             console.error('Lỗi phát nhạc:', error);
             message.reply('❌ Đã xảy ra lỗi khi cố gắng phát bài hát này!');
