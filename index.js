@@ -8,7 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.get('/', (req, res) => {
-    res.send('SoundCloud Bot is running 24/7!');
+    res.send('Music Bot is running 24/7!');
 });
 
 app.listen(PORT, () => {
@@ -37,7 +37,7 @@ client.on('messageCreate', async message => {
         const query = args[1];
 
         if (!query) {
-            return message.reply('❌ Vui lòng nhập đường dẫn bài hát SoundCloud!');
+            return message.reply('❌ Vui lòng nhập đường dẫn bài hát (YouTube hoặc SoundCloud)!');
         }
 
         const voiceChannel = message.member.voice.channel;
@@ -52,8 +52,18 @@ client.on('messageCreate', async message => {
                 adapterCreator: message.guild.voiceAdapterCreator,
             });
 
-            // Lấy stream trực tiếp từ play-dl
-            const stream = await play.stream(query);
+            // Lấy stream trực tiếp từ play-dl (hỗ trợ cả YouTube và SoundCloud)
+            let stream;
+            if (play.is_url(query)) {
+                stream = await play.stream(query);
+            } else {
+                // Nếu người dùng gõ từ khóa thay vì link, tìm kiếm video trên YouTube
+                const searched = await play.search(query, { limit: 1 });
+                if (!searched.length) {
+                    return message.reply('❌ Không tìm thấy bài hát nào phù hợp!');
+                }
+                stream = await play.stream(searched[0].url);
+            }
 
             const resource = createAudioResource(stream.stream, {
                 inputType: stream.type
@@ -63,7 +73,7 @@ client.on('messageCreate', async message => {
             connection.subscribe(player);
             player.play(resource);
 
-            message.reply(`🎵 Đang phát nhạc theo yêu cầu!`);
+            message.reply(`🎵 Đang phát nhạc theo yêu cầu của bạn!`);
         } catch (error) {
             console.error('Lỗi phát nhạc:', error);
             message.reply('❌ Đã xảy ra lỗi khi cố gắng phát bài hát này!');
