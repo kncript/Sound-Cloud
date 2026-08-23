@@ -28,13 +28,13 @@ const client = new Client({
 const player = new Player(client);
 
 client.once('ready', async () => {
-    // Đăng ký SoundCloudExtractor trước để ưu tiên lấy nhạc từ SoundCloud
+    // Đăng ký SoundCloudExtractor trước để ưu tiên lấy nhạc từ SoundCloud, tránh lỗi YouTube
     await player.extractors.register(SoundCloudExtractor, {});
     await player.extractors.register(YouTubeExtractor, {});
-    console.log(`Logged in as ${client.user.tag}! (SoundCloud prioritized)`);
+    console.log(`Logged in as ${client.user.tag}!`);
 });
 
-// Bắt sự kiện lỗi của player để tránh bot bị crash ngầm
+// Bắt sự kiện lỗi để tránh bot bị crash ngầm
 player.events.on('error', (queue, error) => {
     console.error(`[Player Error] ${error.message}`);
 });
@@ -57,11 +57,12 @@ client.on('messageCreate', async message => {
     const args = message.content.trim().split(/ +/);
     const command = args.shift().toLowerCase();
 
+    // 1. Lệnh !play
     if (command === '!play') {
         let query = args.join(' ');
         if (!query) return message.reply('❌ Vui lòng nhập tên bài hát hoặc đường dẫn SoundCloud!');
 
-        // Nếu người dùng không dán link, tự động thêm từ khóa soundcloud để ép bot tìm trên SoundCloud
+        // Nếu không phải link, thêm hậu tố để ưu tiên tìm kiếm trên SoundCloud
         if (!query.startsWith('http')) {
             query = `${query} soundcloud`;
         }
@@ -73,8 +74,8 @@ client.on('messageCreate', async message => {
             await player.play(voiceChannel, query, {
                 nodeOptions: {
                     metadata: message,
-                    selfDeaf: true,
-                    volume: 80,
+                    selfDeaf: false, // Bật tai nghe cho bot để truyền âm thanh
+                    volume: 100,     // Âm lượng tối đa
                     leaveOnEmpty: true,
                     leaveOnEmptyCooldown: 300000,
                     leaveOnEnd: true,
@@ -83,10 +84,11 @@ client.on('messageCreate', async message => {
             });
         } catch (e) {
             console.error(e);
-            return message.reply('❌ Không thể phát bài hát này từ SoundCloud. Hãy thử copy trực tiếp link bài hát trên SoundCloud dán vào xem sao!');
+            return message.reply('❌ Không thể phát bài hát này. Hãy thử gửi trực tiếp link từ SoundCloud!');
         }
     }
 
+    // 2. Lệnh !skip
     else if (command === '!skip') {
         const queue = player.nodes.get(message.guild.id);
         if (!queue || !queue.isPlaying()) return message.reply('❌ Không có bài hát nào đang phát!');
@@ -94,6 +96,7 @@ client.on('messageCreate', async message => {
         return message.reply('⏭️ Đã bỏ qua bài hát hiện tại!');
     }
 
+    // 3. Lệnh !stop
     else if (command === '!stop') {
         const queue = player.nodes.get(message.guild.id);
         if (!queue) return message.reply('❌ Bot không ở trong phòng Voice!');
@@ -101,6 +104,7 @@ client.on('messageCreate', async message => {
         return message.reply('⏹️ Đã dừng nhạc và rời khỏi phòng!');
     }
 
+    // 4. Lệnh !pause
     else if (command === '!pause') {
         const queue = player.nodes.get(message.guild.id);
         if (!queue || !queue.isPlaying()) return message.reply('❌ Không có nhạc đang phát để tạm dừng!');
@@ -108,6 +112,7 @@ client.on('messageCreate', async message => {
         return message.reply('⏸️ Đã tạm dừng phát nhạc.');
     }
 
+    // 5. Lệnh !resume
     else if (command === '!resume') {
         const queue = player.nodes.get(message.guild.id);
         if (!queue) return message.reply('❌ Không có hàng đợi nào!');
