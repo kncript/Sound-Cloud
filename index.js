@@ -54,8 +54,6 @@ player.events.on('playerStart', (queue, track) => {
 client.on('messageCreate', async message => {
     if (!message.guild || message.author.bot) return;
 
----
-
     const args = message.content.trim().split(/ +/);
     const command = args.shift().toLowerCase();
 
