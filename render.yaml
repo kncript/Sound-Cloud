@@ -1,9 +1,9 @@
 services:
   - type: web
-    name: discord-music-bot
+    name: soundcloud-bot
     env: node
-    buildCommand: "npm install && apt-get update && apt-get install -y ffmpeg"
-    startCommand: "node index.js"
+    buildCommand: npm install
+    startCommand: node index.js
     envVars:
-      - key: NODE_ENV
-        env: production
+      - key: NODE_VERSION
+        value: 20.11.0
