@@ -1,6 +1,6 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits } = require('discord.js');
-const { Player, QueryType } = require('discord-player');
+const { Player } = require('discord-player');
 const { SoundCloudExtractor } = require('@discord-player/extractor');
 const express = require('express');
 
@@ -29,7 +29,7 @@ const client = new Client({
 const player = new Player(client);
 
 client.once('ready', async () => {
-    // Chỉ đăng ký duy nhất SoundCloudExtractor
+    // Đăng ký SoundCloudExtractor
     await player.extractors.register(SoundCloudExtractor, {});
     console.log(`Logged in as ${client.user.tag}! (SoundCloud Only)`);
 });
@@ -65,17 +65,8 @@ client.on('messageCreate', async message => {
         if (!voiceChannel) return message.reply('❌ Bạn cần vào một phòng Voice Channel trước!');
 
         try {
-            // Ép buộc discord-player chỉ tìm kiếm trên SoundCloud
-            const searchResult = await player.search(query, {
-                requestedBy: message.author,
-                searchEngine: query.includes('soundcloud.com') ? QueryType.SOUNDCLOUD : QueryType.SOUNDCLOUD_SEARCH
-            });
-
-            if (!searchResult || !searchResult.hasTracks()) {
-                return message.reply('❌ Không tìm thấy bài hát nào trên SoundCloud với từ khóa này!');
-            }
-
-            await player.play(voiceChannel, searchResult, {
+            // Truyền trực tiếp query vào player.play để trình trích xuất tự xử lý luồng
+            await player.play(voiceChannel, query, {
                 nodeOptions: {
                     metadata: message,
                     selfDeaf: false,
@@ -89,7 +80,7 @@ client.on('messageCreate', async message => {
             });
         } catch (e) {
             console.error(e);
-            return message.reply('❌ Đã xảy ra lỗi khi kết nối tới SoundCloud.');
+            return message.reply('❌ Không thể phát bài hát này từ SoundCloud.');
         }
     }
 
