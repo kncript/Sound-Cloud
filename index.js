@@ -3,7 +3,7 @@ const { joinVoiceChannel, createAudioPlayer, createAudioResource } = require('@d
 const play = require('play-dl');
 const express = require('express');
 
-// Tạo web server nhỏ để giữ cổng, tránh bị Render đưa vào trạng thái ngủ đông
+// Tạo web server nhỏ để mở port, giúp Render không đưa ứng dụng vào trạng thái ngủ đông
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -15,7 +15,7 @@ app.listen(PORT, () => {
     console.log(`Web server is listening on port ${PORT}`);
 });
 
-// Khởi tạo Discord Bot với đầy đủ quyền cần thiết
+// Khởi tạo Discord Bot với các Intent cần thiết
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -52,24 +52,30 @@ client.on('messageCreate', async message => {
                 adapterCreator: message.guild.voiceAdapterCreator,
             });
 
-            // Lấy stream từ play-dl
-            const streamData = await play.stream(query);
-            
-            const resource = createAudioResource(streamData.stream, {
-                inputType: streamData.type
+            // Kiểm tra link SoundCloud hợp lệ
+            if (!play.soundCloud.so(query)) {
+                return message.reply('❌ Link bạn vừa nhập không phải là link SoundCloud hợp lệ!');
+            }
+
+            // Lấy thông tin bài hát và tạo stream
+            const songInfo = await play.soundcloud(query);
+            const stream = await play.stream(query);
+
+            const resource = createAudioResource(stream.stream, {
+                inputType: stream.type
             });
 
             const player = createAudioPlayer();
             connection.subscribe(player);
             player.play(resource);
 
-            message.reply(`🎵 Đang phát: ${query}`);
+            message.reply(`🎵 Đang phát: **${songInfo.name || query}**`);
         } catch (error) {
-            console.error(error);
-            message.reply('❌ Đã xảy ra lỗi khi phát nhạc!');
+            console.error('Lỗi phát nhạc:', error);
+            message.reply('❌ Đã xảy ra lỗi khi cố gắng phát bài hát này!');
         }
     }
 });
 
-// Đăng nhập bot thông qua biến môi trường trên Render
+// Đăng nhập bot thông qua token bảo mật trên Render
 client.login(process.env.DISCORD_TOKEN);
