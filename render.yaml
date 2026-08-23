@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: discord-music-bot
+    env: node
+    buildCommand: "npm install && apt-get update && apt-get install -y ffmpeg"
+    startCommand: "node index.js"
+    envVars:
+      - key: NODE_ENV
+        env: production
