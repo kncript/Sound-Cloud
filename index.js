@@ -1,6 +1,7 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits } = require('discord.js');
 const { Player } = require('discord-player');
+const { YouTubeExtractor, SoundCloudExtractor } = require('@discord-player/extractor');
 const express = require('express');
 
 // Tạo web server nhỏ để mở port, giúp Render giữ dịch vụ hoạt động 24/7
@@ -29,8 +30,10 @@ const client = new Client({
 const player = new Player(client);
 
 client.once('ready', async () => {
-    // Tải các trình trích xuất mặc định hỗ trợ YouTube, SoundCloud...
-    await player.extractors.loadDefault();
+    // Đăng ký tường minh các trình trích xuất để bot đọc được YouTube và SoundCloud không bị lỗi
+    await player.extractors.register(YouTubeExtractor, {});
+    await player.extractors.register(SoundCloudExtractor, {});
+    
     console.log(`Logged in as ${client.user.tag}!`);
 });
 
