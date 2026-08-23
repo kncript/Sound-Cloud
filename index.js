@@ -1,5 +1,5 @@
 const { Client, GatewayIntentBits } = require('discord.js');
-const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus } = require('@discordjs/voice');
+const { joinVoiceChannel, createAudioPlayer, createAudioResource, StreamType } = require('@discordjs/voice');
 const play = require('play-dl');
 
 const client = new Client({
@@ -11,78 +11,51 @@ const client = new Client({
     ]
 });
 
-const PREFIX = '!';
-
 client.once('ready', () => {
-    console.log(`🎵 Bot Nhạc đã sẵn sàng! Đăng nhập với tên: ${client.user.tag}`);
+    console.log(`Logged in as ${client.user.tag}!`);
 });
 
 client.on('messageCreate', async message => {
-    if (message.author.bot) return;
-    if (!message.content.startsWith(PREFIX)) return;
+    if (!message.guild) return;
 
-    const args = message.content.slice(PREFIX.length).trim().split(/ +/);
-    const command = args.shift().toLowerCase();
+    // Ví dụ lệnh phát nhạc: !play <link_soundcloud_hoặc_youtube>
+    if (message.content.startsWith('!play')) {
+        const args = message.content.split(' ');
+        const query = args[1];
 
-    if (command === 'play') {
-        const channel = message.member?.voice.channel;
-        if (!channel) {
-            return message.reply('❌ Bạn phải vào một kênh voice trước đã!');
+        if (!query) {
+            return message.reply('Vui lòng nhập đường dẫn bài hát!');
         }
 
-        const query = args.join(' ');
-        if (!query) {
-            return message.reply('❌ Hãy nhập tên bài hát hoặc link YouTube cần phát!');
+        const voiceChannel = message.member.voice.channel;
+        if (!voiceChannel) {
+            return message.reply('Bạn cần vào một phòng Voice Channel trước!');
         }
 
         try {
             const connection = joinVoiceChannel({
-                channelId: channel.id,
-                guildId: channel.guild.id,
-                adapterCreator: channel.guild.voiceAdapterCreator,
+                channelId: voiceChannel.id,
+                guildId: message.guild.id,
+                adapterCreator: message.guild.voiceAdapterCreator,
             });
 
-            const loadingMsg = await message.reply(`🔍 Đang tìm kiếm: **${query}**...`);
+            // Sử dụng play-dl để stream nhạc
+            const stream = await play.stream(query);
+            const resource = createAudioResource(stream.stream, {
+                inputType: stream.type
+            });
 
-            let streamData = await play.search(query, { limit: 1 });
-            if (!streamData.length) {
-                return loadingMsg.edit('❌ Không tìm thấy bài hát nào phù hợp!');
-            }
-
-            const songUrl = streamData[0].url;
-            const stream = await play.stream(songUrl);
-
-            const resource = createAudioResource(stream.stream, { inputType: stream.type });
             const player = createAudioPlayer();
-
-            player.play(resource);
             connection.subscribe(player);
+            player.play(resource);
 
-            await loadingMsg.edit(`🎶 Đang phát: **${streamData[0].title}**`);
-
-            player.on(AudioPlayerStatus.Idle, () => {
-                connection.destroy();
-            });
-
+            message.reply(`Đang phát: ${query}`);
         } catch (error) {
             console.error(error);
-            message.reply('❌ Đã xảy ra lỗi khi phát nhạc!');
-        }
-    }
-
-    if (command === 'stop') {
-        const channel = message.member?.voice.channel;
-        if (channel) {
-            const connection = joinVoiceChannel({
-                channelId: channel.id,
-                guildId: channel.guild.id,
-                adapterCreator: channel.guild.voiceAdapterCreator,
-            });
-            connection.destroy();
-            message.reply('⏹️ Đã dừng nhạc và ngắt kết nối!');
+            message.reply('Đã xảy ra lỗi khi phát nhạc!');
         }
     }
 });
 
-// Thay "TOKEN_BOT_CUA_BAN" bằng Token thật của con Sound Cloud vừa tạo
-client.login("MTU0MTAxODE3MzMyMTY0NjE3MQ.G5Wmy8.2jRNqo8CUh2qZyeaYTNE2AHCcarlJleKy84chY");
+// Đăng nhập bot sử dụng biến môi trường DISCORD_TOKEN trên Render
+client.login(process.env.DISCORD_TOKEN);
