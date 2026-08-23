@@ -1,10 +1,9 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits } = require('discord.js');
 const { Player } = require('discord-player');
-const { DefaultExtractors } = require('@discord-player/extractor');
 const express = require('express');
 
-// Tạo web server nhỏ để mở port, giúp Render không bị ngủ đông
+// Tạo web server nhỏ để mở port, giúp Render giữ dịch vụ hoạt động 24/7
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -16,7 +15,7 @@ app.listen(PORT, () => {
     console.log(`Web server is listening on port ${PORT}`);
 });
 
-// Khởi tạo Discord Client với các Intent đầy đủ
+// Khởi tạo Discord Client với đầy đủ các Intents cần thiết
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -30,12 +29,12 @@ const client = new Client({
 const player = new Player(client);
 
 client.once('ready', async () => {
-    // Đăng ký các trình trích xuất mặc định (hỗ trợ YouTube, SoundCloud, Spotify...)
-    await player.extractors.loadMulti(DefaultExtractors);
+    // Tải các trình trích xuất mặc định hỗ trợ YouTube, SoundCloud...
+    await player.extractors.loadDefault();
     console.log(`Logged in as ${client.user.tag}!`);
 });
 
-// Lắng nghe sự kiện tin nhắn để điều khiển bot
+// Lắng nghe sự kiện tin nhắn để điều khiển bot qua các lệnh tiền tố
 client.on('messageCreate', async message => {
     if (!message.guild || message.author.bot) return;
 
@@ -79,7 +78,7 @@ client.on('messageCreate', async message => {
         return message.reply('⏭️ Đã bỏ qua bài hát hiện tại!');
     }
 
-    // 3. Lệnh !stop (Dừng và thoát voice)
+    // 3. Lệnh !stop (Dừng nhạc và thoát khỏi voice)
     else if (command === '!stop') {
         const queue = player.nodes.get(message.guild.id);
         if (!queue) return message.reply('❌ Bot không ở trong phòng Voice!');
@@ -136,5 +135,5 @@ client.on('messageCreate', async message => {
     }
 });
 
-// Đăng nhập bot qua token
+// Đăng nhập bot
 client.login(process.env.DISCORD_TOKEN);
